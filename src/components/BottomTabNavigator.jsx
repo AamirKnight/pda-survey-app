@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,12 +10,8 @@ import SurveyHistoryScreen from '../screens/SurveyHistoryScreen';
 import SurveyListScreen from '../screens/SurveyListScreen';
 import { colors, elevation, minTouchTarget, radius, spacing, typography } from '../theme/theme';
 
-// NOTE: ProfileScreen and the survey-flow screens (PropertyVerification,
-// MapVerification, ConstructionDetails, EvidenceUpload, SurveyResult,
-// SurveyRecommendation, SurveySuccess) keep their existing implementations
-// for now — only the 4 tab roots ship redesigned in this pass. Wire your
-// existing imports for those back in here; everything below is otherwise
-// a drop-in replacement for the old BottomTabNavigator.
+// NOTE: ProfileScreen and the survey-flow screens keep their existing implementations
+// for now — only the 4 tab roots ship redesigned in this pass.
 // @ts-ignore
 import ProfileScreen from '../../src/screens/ProfileScreen';
 // @ts-ignore
@@ -48,6 +45,15 @@ const TAB_CONFIG = {
  * can never be pushed off-screen by a notch, gesture bar, or keyboard. */
 function FloatingTabBar({ state, descriptors, navigation }) {
   const insets = useSafeAreaInsets();
+  
+  // Get the options for the currently focused tab route
+  const focusedRoute = state.routes[state.index];
+  const { options } = descriptors[focusedRoute.key];
+
+  // If the route options say the tab bar should be hidden, don't render it
+  if (options.tabBarStyle?.display === 'none') {
+    return null;
+  }
 
   return (
     <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, spacing.sm) }]}>
@@ -55,7 +61,7 @@ function FloatingTabBar({ state, descriptors, navigation }) {
         {state.routes.map((route, index) => {
           const config = TAB_CONFIG[route.name] ?? TAB_CONFIG.Dashboard;
           const isFocused = state.index === index;
-          const { options } = descriptors[route.key];
+          const { options: routeOptions } = descriptors[route.key];
 
           const onPress = () => {
             const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
@@ -70,7 +76,7 @@ function FloatingTabBar({ state, descriptors, navigation }) {
               onPress={onPress}
               accessibilityRole="button"
               accessibilityState={{ selected: isFocused }}
-              accessibilityLabel={options.tabBarAccessibilityLabel ?? config.label}
+              accessibilityLabel={routeOptions.tabBarAccessibilityLabel ?? config.label}
               style={styles.tabItem}
             >
               <View style={[styles.iconWrap, isFocused && styles.iconWrapActive]}>
@@ -138,11 +144,25 @@ function ProfileStack() {
   );
 }
 
+// Helper function to check if the tab bar should be visible based on the current nested route
+const getTabBarVisibility = (route) => {
+  const routeName = getFocusedRouteNameFromRoute(route);
+  
+  // Tab bar should ONLY be visible on these root screens.
+  // 'undefined' means we are on the initial screen of that stack and haven't navigated deeper yet.
+  const visibleScreens = ['DashboardMain', 'SurveyListMain', 'SurveyHistoryMain', 'ProfileMain', undefined];
+  
+  return visibleScreens.includes(routeName) ? 'flex' : 'none';
+};
+
 export default function BottomTabNavigator() {
   return (
     <Tab.Navigator
       tabBar={(props) => <FloatingTabBar {...props} />}
-      screenOptions={{ headerShown: false }}
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarStyle: { display: getTabBarVisibility(route) }
+      })}
     >
       <Tab.Screen name="Dashboard" component={DashboardStack} />
       <Tab.Screen name="Surveys" component={SurveysStack} />
