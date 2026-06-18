@@ -33,6 +33,7 @@ function MainDrawer({ user }) {
       <Drawer.Screen name="SurveyResult" component={SurveyResultScreen} />
       <Drawer.Screen name="SurveyRecommendation" component={SurveyRecommendationScreen} />
       <Drawer.Screen name="SurveySuccess" component={SurveySuccessScreen} />
+      <Drawer.Screen name="Login" component={LoginScreen} />
     </Drawer.Navigator>
   );
 }

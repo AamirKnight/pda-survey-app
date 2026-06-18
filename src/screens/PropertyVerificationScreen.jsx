@@ -3,25 +3,19 @@ import * as Location from 'expo-location';
 import { useEffect, useState } from 'react';
 import {
   Alert,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import Header from '../components/Header';
-
-const COLORS = {
-  primary: '#1A3C6E',
-  accent: '#E8A020',
-  white: '#FFFFFF',
-  bg: '#F4F6FA',
-  textPrimary: '#1A1A2E',
-  textSecond: '#5C6B8A',
-  border: '#DDE3EE',
-  inputBg: '#EEF1F8',
-};
+import Button from '../components/ui/Button';
+import FormCard from '../components/ui/FomrCard';
+import InfoBanner from '../components/ui/InfoBanner';
+import InputField from '../components/ui/InputFeild';
+import StepProgress from '../components/ui/StepProgress';
+import { colors, radius, spacing, typography } from '../theme/theme';
 
 const REGISTERED_PROPERTIES = [
   {
@@ -58,22 +52,14 @@ export default function PropertyVerificationScreen({ navigation, route }) {
   const { propertyId, isNew = false, surveyId: initialSurveyId } = route.params || {};
   const [surveyData, setSurveyData] = useState({
     surveyId: initialSurveyId || `SVY-2025-${Date.now().toString().slice(-5)}`,
-    date: new Date().toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    }),
+    date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
     surveyor: 'Ravi Kumar Sharma',
     lat: null,
     lng: null,
     timestamp: new Date().toLocaleTimeString(),
   });
   const [property, setProperty] = useState(null);
-  const [newProperty, setNewProperty] = useState({
-    ownerName: '',
-    address: '',
-    landmark: '',
-  });
+  const [newProperty, setNewProperty] = useState({ ownerName: '', address: '', landmark: '' });
   const [verifications, setVerifications] = useState({
     ownerNameMatches: false,
     addressMatches: false,
@@ -83,29 +69,17 @@ export default function PropertyVerificationScreen({ navigation, route }) {
 
   useEffect(() => {
     if (propertyId) {
-      const found = REGISTERED_PROPERTIES.find(p => p.propertyId === propertyId);
-      setProperty(found);
+      setProperty(REGISTERED_PROPERTIES.find((p) => p.propertyId === propertyId) ?? null);
     }
-
-    const getLocation = async () => {
-      let { status } = await Location.requestForegroundPermissionsAsync();
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        setSurveyData(prev => ({
-          ...prev,
-          lat: 25.4358,
-          lng: 81.8463,
-        }));
+        setSurveyData((p) => ({ ...p, lat: 25.4358, lng: 81.8463 }));
         return;
       }
-
-      let loc = await Location.getCurrentPositionAsync({});
-      setSurveyData(prev => ({
-        ...prev,
-        lat: loc.coords.latitude,
-        lng: loc.coords.longitude,
-      }));
-    };
-    getLocation();
+      const loc = await Location.getCurrentPositionAsync({});
+      setSurveyData((p) => ({ ...p, lat: loc.coords.latitude, lng: loc.coords.longitude }));
+    })();
   }, [propertyId]);
 
   const handleContinue = () => {
@@ -116,27 +90,14 @@ export default function PropertyVerificationScreen({ navigation, route }) {
           text: 'Continue',
           onPress: () =>
             navigation.navigate('MapVerification', {
-              surveyData: {
-                ...surveyData,
-                property,
-                isNew,
-                verifications,
-                propertyFound,
-              },
+              surveyData: { ...surveyData, property, isNew, verifications, propertyFound },
             }),
         },
       ]);
       return;
     }
     navigation.navigate('MapVerification', {
-      surveyData: {
-        ...surveyData,
-        property,
-        newProperty,
-        isNew,
-        verifications,
-        propertyFound,
-      },
+      surveyData: { ...surveyData, property, newProperty, isNew, verifications, propertyFound },
     });
   };
 
@@ -146,354 +107,191 @@ export default function PropertyVerificationScreen({ navigation, route }) {
         title="Property Verification"
         showBack
         onBackPress={() => navigation.goBack()}
-        onMenuPress={() => navigation.openDrawer()}
+        onMenuPress={() => navigation.openDrawer?.()}
       />
-      <ScrollView style={styles.content}>
-        <View style={styles.infoCard}>
-          <Text style={styles.cardTitle}>Survey Information</Text>
+
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <StepProgress current={1} total={5} />
+
+        {/* Session info */}
+        <FormCard title="Survey Session">
+          {[
+            ['Survey ID', surveyData.surveyId],
+            ['Date', surveyData.date],
+            ['Surveyor', surveyData.surveyor],
+            ['Time', surveyData.timestamp],
+          ].map(([label, value]) => (
+            <View key={label} style={styles.infoRow}>
+              <Text style={styles.infoLabel}>{label}</Text>
+              <Text style={styles.infoValue}>{value}</Text>
+            </View>
+          ))}
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Survey ID:</Text>
-            <Text style={styles.infoValue}>{surveyData.surveyId}</Text>
+            <Text style={styles.infoLabel}>GPS</Text>
+            {surveyData.lat ? (
+              <View style={styles.gpsPill}>
+                <Ionicons name="location" size={12} color={colors.success} />
+                <Text style={styles.gpsText}>
+                  {surveyData.lat.toFixed(4)}°N · {surveyData.lng.toFixed(4)}°E
+                </Text>
+              </View>
+            ) : (
+              <Text style={styles.infoValue}>Fetching…</Text>
+            )}
           </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Date:</Text>
-            <Text style={styles.infoValue}>{surveyData.date}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Surveyor:</Text>
-            <Text style={styles.infoValue}>{surveyData.surveyor}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>GPS:</Text>
-            <Text style={styles.infoValue}>
-              {surveyData.lat
-                ? `${surveyData.lat.toFixed(4)}° N, ${surveyData.lng.toFixed(4)}° E`
-                : 'Fetching...'}
-            </Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Time:</Text>
-            <Text style={styles.infoValue}>{surveyData.timestamp}</Text>
-          </View>
-        </View>
+        </FormCard>
 
         {isNew ? (
           <>
-            <View style={styles.noteCard}>
-              <Ionicons name="push" size={20} color={COLORS.primary} style={styles.noteIcon} />
-              <Text style={styles.noteText}>
-                This property is not in the PDA registry. Please complete all details carefully.
-              </Text>
-            </View>
-            <View style={styles.formCard}>
-              <Text style={styles.cardTitle}>Property Details</Text>
-              <View style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>Owner Name (Optional)</Text>
-                <TextInput
-                  style={styles.input}
-                  value={newProperty.ownerName}
-                  onChangeText={(text) =>
-                    setNewProperty((prev) => ({ ...prev, ownerName: text }))
-                  }
-                  placeholder="Enter owner name"
-                  placeholderTextColor={COLORS.textSecond}
-                />
-              </View>
-              <View style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>Address</Text>
-                <TextInput
-                  style={[styles.input, styles.textArea]}
-                  value={newProperty.address}
-                  onChangeText={(text) =>
-                    setNewProperty((prev) => ({ ...prev, address: text }))
-                  }
-                  placeholder="Enter full address"
-                  placeholderTextColor={COLORS.textSecond}
-                  multiline
-                />
-              </View>
-              <View style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>Landmark</Text>
-                <TextInput
-                  style={styles.input}
-                  value={newProperty.landmark}
-                  onChangeText={(text) =>
-                    setNewProperty((prev) => ({ ...prev, landmark: text }))
-                  }
-                  placeholder="Enter nearby landmark"
-                  placeholderTextColor={COLORS.textSecond}
-                />
-              </View>
-            </View>
+            <InfoBanner
+              variant="info"
+              message="This property is not in the PDA registry. Please complete all details carefully."
+            />
+            <FormCard title="Property Details">
+              <InputField
+                label="Owner Name"
+                optional
+                value={newProperty.ownerName}
+                onChangeText={(t) => setNewProperty((p) => ({ ...p, ownerName: t }))}
+                placeholder="Enter owner name"
+              />
+              <InputField
+                label="Address"
+                value={newProperty.address}
+                onChangeText={(t) => setNewProperty((p) => ({ ...p, address: t }))}
+                placeholder="Enter full address"
+                multiline
+              />
+              <InputField
+                label="Landmark"
+                value={newProperty.landmark}
+                onChangeText={(t) => setNewProperty((p) => ({ ...p, landmark: t }))}
+                placeholder="Enter nearby landmark"
+              />
+            </FormCard>
           </>
         ) : (
-          <View style={styles.formCard}>
-            <Text style={styles.cardTitle}>Property Identification</Text>
+          <FormCard title="Property Identification">
             {property && (
               <>
-                <View style={styles.fieldContainer}>
-                  <Text style={styles.fieldLabel}>Property ID</Text>
-                  <Text style={styles.fieldValue}>{property.propertyId}</Text>
-                </View>
-                <View style={styles.fieldContainer}>
-                  <Text style={styles.fieldLabel}>Owner Name</Text>
-                  <Text style={styles.fieldValue}>{property.ownerName}</Text>
-                  <TouchableOpacity
-                    style={[
-                      styles.checkbox,
-                      verifications.ownerNameMatches && styles.checkboxChecked,
-                    ]}
-                    onPress={() =>
-                      setVerifications((prev) => ({
-                        ...prev,
-                        ownerNameMatches: !prev.ownerNameMatches,
-                      }))
-                    }
-                  >
-                    <Text style={styles.checkboxLabel}>Owner Name Matches</Text>
-                    {verifications.ownerNameMatches && <Ionicons name="checkmark" size={20} color={COLORS.success} />}
-                  </TouchableOpacity>
-                </View>
-                <View style={styles.fieldContainer}>
-                  <Text style={styles.fieldLabel}>Address</Text>
-                  <Text style={styles.fieldValue}>{property.address}</Text>
-                  <TouchableOpacity
-                    style={[
-                      styles.checkbox,
-                      verifications.addressMatches && styles.checkboxChecked,
-                    ]}
-                    onPress={() =>
-                      setVerifications((prev) => ({
-                        ...prev,
-                        addressMatches: !prev.addressMatches,
-                      }))
-                    }
-                  >
-                    <Text style={styles.checkboxLabel}>Address Matches</Text>
-                    {verifications.addressMatches && <Ionicons name="checkmark" size={20} color={COLORS.success} />}
-                  </TouchableOpacity>
-                </View>
-                <View style={styles.fieldContainer}>
-                  <Text style={styles.fieldLabel}>Landmark</Text>
-                  <Text style={styles.fieldValue}>{property.landmark}</Text>
-                  <TouchableOpacity
-                    style={[
-                      styles.checkbox,
-                      verifications.landmarkMatches && styles.checkboxChecked,
-                    ]}
-                    onPress={() =>
-                      setVerifications((prev) => ({
-                        ...prev,
-                        landmarkMatches: !prev.landmarkMatches,
-                      }))
-                    }
-                  >
-                    <Text style={styles.checkboxLabel}>Landmark Matches</Text>
-                    {verifications.landmarkMatches && <Ionicons name="checkmark" size={20} color={COLORS.success} />}
-                  </TouchableOpacity>
-                </View>
-                <View style={styles.toggleContainer}>
-                  <Text style={styles.toggleLabel}>Property Found on Site?</Text>
-                  <View style={styles.toggleButtons}>
-                    <TouchableOpacity
-                      style={[
-                        styles.toggleButton,
-                        propertyFound && styles.toggleButtonActive,
-                      ]}
-                      onPress={() => setPropertyFound(true)}
-                    >
-                      <Text
-                        style={[
-                          styles.toggleButtonText,
-                          propertyFound && styles.toggleButtonTextActive,
-                        ]}
+                {[
+                  ['Property ID', property.propertyId, 'ownerNameMatches'],
+                  ['Owner Name', property.ownerName, 'ownerNameMatches'],
+                  ['Address', property.address, 'addressMatches'],
+                  ['Landmark', property.landmark, 'landmarkMatches'],
+                ].map(([label, value, key], i) =>
+                  i === 0 ? (
+                    <View key={label} style={styles.infoRow}>
+                      <Text style={styles.infoLabel}>{label}</Text>
+                      <Text style={[styles.infoValue, { color: colors.primaryDark, fontWeight: '700' }]}>{value}</Text>
+                    </View>
+                  ) : (
+                    <View key={label} style={styles.verifyBlock}>
+                      <Text style={styles.infoLabel}>{label}</Text>
+                      <Text style={styles.verifyValue}>{value}</Text>
+                      <Pressable
+                        onPress={() => setVerifications((p) => ({ ...p, [key]: !p[key] }))}
+                        style={[styles.checkRow, verifications[key] && styles.checkRowDone]}
                       >
-                        Yes
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.toggleButton,
-                        !propertyFound && styles.toggleButtonActive,
-                      ]}
-                      onPress={() => setPropertyFound(false)}
-                    >
-                      <Text
-                        style={[
-                          styles.toggleButtonText,
-                          !propertyFound && styles.toggleButtonTextActive,
-                        ]}
+                        <Ionicons
+                          name={verifications[key] ? 'checkbox' : 'square-outline'}
+                          size={20}
+                          color={verifications[key] ? colors.success : colors.textTertiary}
+                        />
+                        <Text style={[styles.checkLabel, verifications[key] && { color: colors.success }]}>
+                          {label} matches on site
+                        </Text>
+                      </Pressable>
+                    </View>
+                  )
+                )}
+
+                <View style={styles.foundBlock}>
+                  <Text style={styles.foundLabel}>Property Found on Site?</Text>
+                  <View style={styles.foundRow}>
+                    {[true, false].map((v) => (
+                      <Pressable
+                        key={String(v)}
+                        onPress={() => setPropertyFound(v)}
+                        style={[styles.foundBtn, propertyFound === v && styles.foundBtnActive]}
                       >
-                        No
-                      </Text>
-                    </TouchableOpacity>
+                        <Text style={[styles.foundBtnText, propertyFound === v && styles.foundBtnTextActive]}>
+                          {v ? 'Yes' : 'No'}
+                        </Text>
+                      </Pressable>
+                    ))}
                   </View>
                 </View>
               </>
             )}
-          </View>
+          </FormCard>
         )}
 
-        <TouchableOpacity style={styles.continueButton} onPress={handleContinue}>
-          <Text style={styles.continueButtonText}>Proceed to Map Verification</Text>
-        </TouchableOpacity>
+        <Button
+          label="Proceed to Map Verification"
+          onPress={handleContinue}
+          icon="arrow-forward"
+          iconPosition="right"
+        />
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.bg,
-  },
-  content: {
-    flex: 1,
-    padding: 16,
-  },
-  infoCard: {
-    backgroundColor: COLORS.white,
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 16,
-    elevation: 2,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: COLORS.textPrimary,
-    marginBottom: 16,
-  },
+  container: { flex: 1, backgroundColor: colors.background },
+  scroll: { flex: 1 },
+  content: { padding: spacing.lg, paddingBottom: 40 },
+
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  infoLabel: {
-    fontSize: 14,
-    color: COLORS.textSecond,
-  },
-  infoValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.textPrimary,
-  },
-  noteCard: {
-    backgroundColor: COLORS.primary + '10',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  noteIcon: {
-    marginRight: 8,
-    marginTop: 2,
-  },
-  noteText: {
-    fontSize: 14,
-    color: COLORS.primary,
-    lineHeight: 20,
-    flex: 1,
-  },
-  formCard: {
-    backgroundColor: COLORS.white,
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 16,
-    elevation: 2,
-  },
-  fieldContainer: {
-    marginBottom: 16,
-  },
-  fieldLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: COLORS.textSecond,
-    marginBottom: 8,
-  },
-  fieldValue: {
-    fontSize: 14,
-    color: COLORS.textPrimary,
-    marginBottom: 8,
-    lineHeight: 20,
-  },
-  input: {
-    backgroundColor: COLORS.inputBg,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 14,
-    color: COLORS.textPrimary,
-  },
-  textArea: {
-    height: 100,
-    textAlignVertical: 'top',
-  },
-  checkbox: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: COLORS.inputBg,
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
   },
-  checkboxChecked: {
-    backgroundColor: COLORS.success + '10',
-    borderColor: COLORS.success,
-  },
-  checkboxLabel: {
-    fontSize: 14,
-    color: COLORS.textPrimary,
-  },
-  toggleContainer: {
-    marginTop: 8,
-  },
-  toggleLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: COLORS.textSecond,
-    marginBottom: 12,
-  },
-  toggleButtons: {
+  infoLabel: { ...typography.bodySmall, color: colors.textSecondary },
+  infoValue: { ...typography.label, color: colors.textPrimary, fontWeight: '600', maxWidth: '60%', textAlign: 'right' },
+
+  gpsPill: {
     flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.successTint,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+  },
+  gpsText: { ...typography.caption, color: colors.success, fontWeight: '700' },
+
+  verifyBlock: { marginBottom: spacing.md },
+  verifyValue: { ...typography.bodyMedium, color: colors.textPrimary, marginVertical: spacing.xs },
+  checkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 10,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  checkRowDone: { backgroundColor: colors.successTint, borderColor: colors.success },
+  checkLabel: { ...typography.label, color: colors.textSecondary },
+
+  foundBlock: { marginTop: spacing.md },
+  foundLabel: { ...typography.label, color: colors.textSecondary, marginBottom: spacing.sm },
+  foundRow: {
+    flexDirection: 'row',
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: radius.md,
     overflow: 'hidden',
   },
-  toggleButton: {
-    flex: 1,
-    paddingVertical: 14,
-    alignItems: 'center',
-    backgroundColor: COLORS.inputBg,
-  },
-  toggleButtonActive: {
-    backgroundColor: COLORS.primary,
-  },
-  toggleButtonText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: COLORS.textPrimary,
-  },
-  toggleButtonTextActive: {
-    color: COLORS.white,
-  },
-  continueButton: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 10,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  continueButtonText: {
-    color: COLORS.white,
-    fontSize: 16,
-    fontWeight: '700',
-  },
+  foundBtn: { flex: 1, paddingVertical: 13, alignItems: 'center', backgroundColor: colors.surface },
+  foundBtnActive: { backgroundColor: colors.primary },
+  foundBtnText: { ...typography.label, color: colors.textSecondary, fontWeight: '700' },
+  foundBtnTextActive: { color: colors.white },
 });
